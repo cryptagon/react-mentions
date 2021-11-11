@@ -81,19 +81,8 @@ const propTypes = {
   onSelect: PropTypes.func,
   onBlur: PropTypes.func,
   onChange: PropTypes.func,
-  suggestionsPortalHost:
-    typeof Element === 'undefined'
-      ? PropTypes.any
-      : PropTypes.PropTypes.instanceOf(Element),
-  inputRef: PropTypes.oneOfType([
-    PropTypes.func,
-    PropTypes.shape({
-      current:
-        typeof Element === 'undefined'
-          ? PropTypes.any
-          : PropTypes.instanceOf(Element),
-    }),
-  ]),
+  suggestionsPortalWindow: PropTypes.any,
+  inputRef: PropTypes.any,
 
   children: PropTypes.oneOfType([
     PropTypes.element,
@@ -138,9 +127,14 @@ class MentionsInput extends React.Component {
   }
 
   componentDidMount() {
+    const document = this.props.suggestionsPortalWindow.document
     document.addEventListener('copy', this.handleCopy)
     document.addEventListener('cut', this.handleCut)
     document.addEventListener('paste', this.handlePaste)
+    this.props.suggestionsPortalWindow.addEventListener(
+      'resize',
+      this.updateSuggestionsPosition
+    )
 
     this.updateSuggestionsPosition()
   }
@@ -161,9 +155,14 @@ class MentionsInput extends React.Component {
   }
 
   componentWillUnmount() {
+    const document = this.props.suggestionsPortalWindow.document
     document.removeEventListener('copy', this.handleCopy)
     document.removeEventListener('cut', this.handleCut)
     document.removeEventListener('paste', this.handlePaste)
+    this.props.suggestionsPortalWindow.addEventListener(
+      'resize',
+      this.updateSuggestionsPosition
+    )
   }
 
   render() {
@@ -286,10 +285,10 @@ class MentionsInput extends React.Component {
         {this.props.children}
       </SuggestionsOverlay>
     )
-    if (this.props.suggestionsPortalHost) {
+    if (this.props.suggestionsPortalWindow) {
       return ReactDOM.createPortal(
         suggestionsNode,
-        this.props.suggestionsPortalHost
+        this.props.suggestionsPortalWindow.document.body
       )
     } else {
       return suggestionsNode
@@ -658,7 +657,11 @@ class MentionsInput extends React.Component {
 
   updateSuggestionsPosition = () => {
     let { caretPosition } = this.state
-    const { suggestionsPortalHost, allowSuggestionsAboveCursor, forceSuggestionsAboveCursor } = this.props
+    const {
+      suggestionsPortalWindow,
+      allowSuggestionsAboveCursor,
+      forceSuggestionsAboveCursor,
+    } = this.props
 
     if (!caretPosition || !this.suggestionsElement) {
       return
@@ -674,8 +677,8 @@ class MentionsInput extends React.Component {
       top: caretOffsetParentRect.top + caretPosition.top + caretHeight,
     }
     const viewportHeight = Math.max(
-      document.documentElement.clientHeight,
-      window.innerHeight || 0
+      suggestionsPortalWindow.document.documentElement.clientHeight,
+      suggestionsPortalWindow.innerHeight || 0
     )
 
     if (!suggestions) {
@@ -685,7 +688,7 @@ class MentionsInput extends React.Component {
     let position = {}
 
     // if suggestions menu is in a portal, update position to be releative to its portal node
-    if (suggestionsPortalHost) {
+    if (suggestionsPortalWindow) {
       position.position = 'fixed'
       let left = viewportRelative.left
       let top = viewportRelative.top
@@ -697,8 +700,8 @@ class MentionsInput extends React.Component {
       top -= highlighter.scrollTop
       // guard for mentions suggestions list clipped by right edge of window
       const viewportWidth = Math.max(
-        document.documentElement.clientWidth,
-        window.innerWidth || 0
+        suggestionsPortalWindow.document.documentElement.clientWidth,
+        suggestionsPortalWindow.innerWidth || 0
       )
       if (left + suggestions.offsetWidth > viewportWidth) {
         position.left = Math.max(0, viewportWidth - suggestions.offsetWidth)
@@ -710,9 +713,9 @@ class MentionsInput extends React.Component {
       // is small enough to NOT cover up the caret
       if (
         (allowSuggestionsAboveCursor &&
-        top + suggestions.offsetHeight > viewportHeight &&
+          top + suggestions.offsetHeight > viewportHeight &&
           suggestions.offsetHeight < top - caretHeight) ||
-          forceSuggestionsAboveCursor
+        forceSuggestionsAboveCursor
       ) {
         position.top = Math.max(0, top - suggestions.offsetHeight - caretHeight)
       } else {
