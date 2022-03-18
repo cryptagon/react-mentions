@@ -477,7 +477,8 @@ class MentionsInput extends React.Component {
     let newPlainTextValue = ev.target.value
 
     // Derive the new value to set by applying the local change in the textarea's plain text
-    let newValue = ['@', '#'].includes(newPlainTextValue) ? applyChangeToValue(
+    const hasMentions = ['@', '#'].some(c => value.includes(c) || newPlainTextValue.includes(c))
+    let newValue = hasMentions ? applyChangeToValue(
       value,
       newPlainTextValue,
       {
